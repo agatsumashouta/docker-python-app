@@ -6,8 +6,56 @@ services:
         build: 
             context: ./python
             dockerfile: Dockerfile
+        ports:
+            - "8000:8000"
+        tty: true
+        healthcheck:
+            test: exit 0
+            # すぐに結果が出るようにタイミングを調整する
+            interval: 1s
+            timeout: 1s
+            retries: 3
+            start_period: 1s
         volumes:
             - ./python/app:/app
+        networks:
+            - default
+
+    https-portal:
+        container_name: https-portal
+        image: steveltn/https-portal
         ports:
-            - "8000:8000"  # 必要に応じて
-        tty: true
+            - '80:80'
+            - '443:443'
+        environment:
+            # 本番環境では、localhostの部分を実際のドメイン名に置き換えます
+            DOMAINS: 'localhost -> http://python:8000'
+            # 本番環境の時はSTAGE: localをproductionに変更します
+            # stagingにしてから動作が問題ないことを確認してからproductionに変更するのが良い
+            STAGE: 'local' # Don't use production until staging works
+            # trueにすると、証明書の更新を強制的に行います
+            # FORCE_RENEW: 'true'
+            # ファイルサイズの上限を指定
+            CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE}
+            # タイムゾーンの設定です
+            TZ : Asia/Tokyo
+        volumes:
+            # 証明書とかが保存されてるディレクトリをマウント
+            - ./https_portal/https-portal-data:/var/lib/https-portal
+            # /var/lib/nginx-conf/の下にxxx.conf.erbでconfファイルを上書きできる 
+            # https://github.com/SteveLTN/https-portal?tab=readme-ov-file#override-nginx-configuration-files
+            # - ./https_portal/localhost.ssl.conf:/var/lib/nginx-conf/localhost.ssl.conf.erb:ro
+        # ヘルスチェックの設定 コンテナの名前解決がうまくいかないときもまれにあるので設定しておくと良い
+        healthcheck:
+            test: exit 0
+            # すぐに結果が出るようにタイミングを調整する
+            interval: 1s
+            timeout: 1s
+            retries: 3
+            start_period: 1s
+        # 各コンテナが起動したのを確認してからhttps-portalを起動
+        depends_on:
+            python:
+                condition: service_healthy
+        networks:
+            - default

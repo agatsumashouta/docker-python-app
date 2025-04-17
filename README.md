@@ -1,5 +1,6 @@
 # docker-python-app
-docker環境でpythonとflaskを学習する
+docker+flask
+https-portalでssl対応
 
 ## コマンド
 ### コンテナ起動
